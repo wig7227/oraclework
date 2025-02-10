@@ -243,6 +243,53 @@ WHERE DEPT_CODE = DEPT_ID AND E.JOB_CODE = J.JOB_CODE
 AND SUBSTR(EMP_NO,1,2) = (SELECT MAX(SUBSTR(EMP_NO,1,2))
                           FROM EMPLOYEE);
 
+SELECT EMP_ID, EMP_NAME, 
+            EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')),
+            DEPT_TITLE, JOB_NAME
+FROM EMPLOYEE
+JOIN DEPARTMENT ON (DEPT_CODE = DEPT_ID)
+JOIN JOB USING (JOB_CODE)
+WHERE EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')) = 
+( SELECT MIN(EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')))
+    FROM EMPLOYEE
+);
+
+SELECT EMP_ID, EMP_NAME, 
+            EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')),
+            DEPT_TITLE, JOB_NAME
+FROM EMPLOYEE
+JOIN DEPARTMENT ON (DEPT_CODE = DEPT_ID)
+JOIN JOB USING (JOB_CODE)
+WHERE TO_DATE(SUBSTR(EMP_NO,1,2),'RR') = (SELECT MAX(TO_DATE(SUBSTR(EMP_NO,1,2), 'RR'))
+                                                                    FROM EMPLOYEE);
+                                                                    
+-- INLINE VIEW
+SELECT *
+FROM (SELECT EMP_ID, 
+                                EMP_NAME, 
+                                EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')) 나이,
+                                DEPT_TITLE, 
+                                JOB_NAME
+                      FROM EMPLOYEE
+                      JOIN DEPARTMENT ON (DEPT_CODE = DEPT_ID)
+                      JOIN JOB USING (JOB_CODE)) E
+WHERE E.나이 = (SELECT MIN(EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')))
+                        FROM EMPLOYEE);
+                        
+-- WITH
+WITH AGE AS (SELECT EMP_ID, 
+                                EMP_NAME, 
+                                EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM TO_DATE(SUBSTR(EMP_NO, 1, 2), 'RR')) 나이,
+                                DEPT_TITLE, 
+                                JOB_NAME
+                      FROM EMPLOYEE
+                      JOIN DEPARTMENT ON (DEPT_CODE = DEPT_ID)
+                      JOIN JOB USING (JOB_CODE))
+SELECT *
+  FROM AGE
+WHERE 나이 = (SELECT MIN(나이) FROM AGE);                            
+                          
+
 -- 3. 이름에 ‘하’가 들어가는 사원의 사번, 사원명, 직급명 조회
 SELECT EMP_ID, EMP_NAME, JOB_NAME
 FROM EMPLOYEE E, JOB J
@@ -294,31 +341,43 @@ GROUP BY ENT_YN;
 -- 11. 보너스 포함한 연봉이 높은 5명의 사번, 사원명, 부서명, 직급명, 입사일, 순위 조회
 SELECT  *
 FROM (SELECT EMP_ID, EMP_NAME, DEPT_TITLE, JOB_NAME, HIRE_DATE, 
-RANK() OVER(ORDER BY SALARY DESC) 순위 
+RANK() OVER(ORDER BY (SALARY*NVL(1+BONUS,1)*12) DESC) 순위 ,SALARY*NVL(1+BONUS,1)*12 연봉
 FROM EMPLOYEE E, DEPARTMENT D, JOB J
 WHERE DEPT_CODE = DEPT_ID AND E.JOB_CODE = J.JOB_CODE) A
 WHERE 순위 <= 5;
 
--- 12. 부서 별 급여 합계가 전체 급여 총 합의 20%보다 많은 부서의 부서명, 부서별 급여 합계 조회
+-- 12. 부서 별 급여 합계가 
+--전체 급여 총 합의 20%보다 많은 부서의 부서명, 부서별 급여 합계 조회
 --12-1. JOIN과 HAVING 사용
 SELECT DEPT_TITLE, SUM(SALARY)부서별합계
 FROM EMPLOYEE
 JOIN DEPARTMENT ON (DEPT_ID = DEPT_CODE)
-GROUP BY DEPT_TITLE;
+GROUP BY DEPT_TITLE
+HAVING SUM(SALARY) > (SELECT SUM(SALARY)*0.2
+                      FROM EMPLOYEE);
 
--- 12-2. 인라인 뷰 사용      
+-- 12-2. 인라인 뷰 사용  
+SELECT *
+FROM(SELECT DEPT_TITLE, SUM(SALARY)부서별합계
+    FROM EMPLOYEE
+    JOIN DEPARTMENT ON (DEPT_ID = DEPT_CODE)
+    GROUP BY DEPT_TITLE)
+WHERE 부서별합계 > (SELECT SUM(SALARY)*0.2
+                        FROM EMPLOYEE);
 -- 12-3. WITH 사용
-WITH AAA AS (SELECT DEPT_TITLE, SUM(SALARY)부서별합계
-FROM EMPLOYEE
-JOIN DEPARTMENT ON (DEPT_ID = DEPT_CODE)
-GROUP BY DEPT_TITLE)
-SELECT DEPT_TITLE, 부서별합계
-FROM AAA;
+WITH SSUM AS (SELECT DEPT_TITLE, SUM(SALARY)부서별합계
+                FROM EMPLOYEE
+                JOIN DEPARTMENT ON (DEPT_ID = DEPT_CODE)
+                GROUP BY DEPT_TITLE)
+SELECT *
+FROM SSUM
+WHERE 부서별합계 > (SELECT SUM(SALARY)*0.2
+                        FROM EMPLOYEE);
 
 -- 13. 부서명별 급여 합계 조회(NULL도 조회되도록)
 SELECT DEPT_TITLE, SUM(SALARY)
 FROM EMPLOYEE
-JOIN DEPARTMENT ON (DEPT_ID = DEPT_CODE)
+LEFT JOIN DEPARTMENT ON (DEPT_ID = DEPT_CODE)
 GROUP BY DEPT_TITLE;
 
 -- 14. WITH를 이용하여 급여합과 급여평균 조회
