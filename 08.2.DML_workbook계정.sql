@@ -57,12 +57,18 @@ ROLLBACK;
 --7.
 UPDATE TB_GRADE
 SET POINT = '3.5'
-
-WHERE STUDENT_NO = (SELECT S.STUDENT_NO
-                    FROM TB_STUDENT
-                    WHERE STUDENT_NAME = '김명훈');
+WHERE STUDENT_NO IN (SELECT STUDENT_NO                  
+                    FROM TB_STUDENT       
+                    WHERE STUDENT_NAME = '김명훈'
+                    AND TERM_NO = '200501');
+                    --AND CLASS_NAME = '피부생리학');
+                    
+ROLLBACK;
 
 --8.
 DELETE FROM TB_GRADE
-WHERE ABSENCE_YN = 'Y';
+WHERE STUDENT_NO IN (SELECT STUDENT_NO
+                    FROM TB_STUDENT
+                    WHERE ABSENCE_YN = 'Y');
 
+ROLLBACK;

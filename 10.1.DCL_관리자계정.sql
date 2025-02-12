@@ -13,6 +13,7 @@
 */
 
 ALTER SESSION SET"_oracle_script" = true;
+
 --1.SAMPLE/1234 사용자 생성
 CREATE USER SAMPLE IDENTIFIED BY 1234;
     -- 접속 못함. 접근 권한 없음
